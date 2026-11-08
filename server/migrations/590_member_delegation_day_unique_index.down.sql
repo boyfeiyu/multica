@@ -1,1 +1,0 @@
-DROP INDEX CONCURRENTLY IF EXISTS member_delegation_day_user_date_uidx;

@@ -1,1 +1,0 @@
-ALTER TABLE member_delegation_day ADD CONSTRAINT member_delegation_day_pkey PRIMARY KEY USING INDEX member_delegation_day_user_date_uidx;
