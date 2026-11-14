@@ -115,7 +115,7 @@ describe("ChatInput pending upload deletion across unmount", () => {
     view.unmount();
     await settle();
     expect(useChatStore.getState().inputDrafts.session).toContain("synthetic.txt");
-    expect(useChatStore.getState().inputDraftAttachments.session?.[0].status).toBe("uploaded");
+    expect(useChatStore.getState().inputDraftAttachments.session?.[0]?.status).toBe("uploaded");
   });
 
   it("preserves a placeholder restored with undo before unmount", async () => {
@@ -130,7 +130,7 @@ describe("ChatInput pending upload deletion across unmount", () => {
     view.unmount();
     await settle();
     expect(useChatStore.getState().inputDrafts.session).toContain("synthetic.txt");
-    expect(useChatStore.getState().inputDraftAttachments.session?.[0].status).toBe("uploaded");
+    expect(useChatStore.getState().inputDraftAttachments.session?.[0]?.status).toBe("uploaded");
   });
 
   it("keeps deletion across a rapid reopen while the response is still held", async () => {
@@ -157,7 +157,8 @@ describe("ChatInput pending upload deletion across unmount", () => {
     view.unmount();
     await settle();
     expect(useChatStore.getState().inputDraftAttachments.session).toHaveLength(1);
-    const [upload] = useChatStore.getState().inputDraftAttachments.session!;
-    expect(upload.status === "uploaded" && upload.attachment.id).toBe("upload-result-1");
+    expect(useChatStore.getState().inputDraftAttachments.session).toMatchObject([
+      { status: "uploaded", attachment: { id: "upload-result-1" } },
+    ]);
   });
 });
