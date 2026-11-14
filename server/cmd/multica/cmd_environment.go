@@ -249,6 +249,24 @@ func callDaemonEnvironment(parent context.Context, path string, body, out any, t
 	if resp.StatusCode == http.StatusNotFound && strings.HasPrefix(string(respBody), "404 page not found") {
 		return fmt.Errorf("this daemon does not support environments yet; update it with `multica update`")
 	}
+	if resp.StatusCode == http.StatusUnauthorized {
+		httpErr := &cli.HTTPError{
+			Method:     req.Method,
+			Path:       path,
+			StatusCode: resp.StatusCode,
+			Body:       strings.TrimSpace(string(respBody)),
+			TaskScoped: resp.Request != nil && strings.HasPrefix(resp.Request.Header.Get("Authorization"), "Bearer "+cli.TaskTokenPrefix),
+		}
+		message := httpErr.Body
+		if httpErr.TaskScoped {
+			hint := "This task token was rejected. Stop here. Do not retry or fall back to a profile or member credential. Only the runtime that started this task can supply a valid task token."
+			if cli.DetectLanguage() == cli.LangZH {
+				hint = "这个 task token 已被拒绝。请到此为止。不要重试，也不要改用 profile 或成员凭证。只有启动这次 task 的运行时才能提供有效的 task token。"
+			}
+			message += "\n" + hint
+		}
+		return cli.WithUserMessage(message, httpErr)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("%s", strings.TrimSpace(string(respBody)))
 	}
