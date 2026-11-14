@@ -178,6 +178,8 @@ interface ContentEditorBaseProps {
    * pay nothing — the scan below is skipped entirely when it's absent.
    */
   onUploadingChange?: (uploading: boolean) => void;
+  /** Live placeholder ids after a document edit, before the markdown debounce. */
+  onUploadPlaceholdersChange?: (uploadIds: string[]) => void;
   /** Show the floating formatting toolbar on text selection. Defaults true. */
   showBubbleMenu?: boolean;
   /** Additional non-editing action for the current text selection. */
@@ -388,6 +390,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
       onUploadFile,
       pasteAsFileThreshold,
       onUploadingChange,
+      onUploadPlaceholdersChange,
       showBubbleMenu = true,
       selectionAction,
       currentIssueId,
@@ -416,6 +419,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     const onBlurRef = useRef(onBlur);
     const onReadyRef = useRef(onReady);
     const onUploadingChangeRef = useRef(onUploadingChange);
+    const onUploadPlaceholdersChangeRef = useRef(onUploadPlaceholdersChange);
     const onUploadFileRef = useRef<
       ((file: File, uploadId: string) => Promise<UploadResult | null>) | undefined
     >(undefined);
@@ -527,6 +531,7 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
     onBlurRef.current = onBlur;
     onReadyRef.current = onReady;
     onUploadingChangeRef.current = onUploadingChange;
+    onUploadPlaceholdersChangeRef.current = onUploadPlaceholdersChange;
     onUploadFileRef.current = wrappedOnUploadFile;
     pasteAsFileThresholdRef.current = pasteAsFileThreshold;
     mentionContextItemsRef.current = mentionContextItems ?? [];
@@ -649,6 +654,15 @@ const ContentEditor = forwardRef<ContentEditorRef, ContentEditorProps>(
         resolveIssueIdentifierRef,
       }),
       onUpdate: ({ editor: ed }) => {
+        if (onUploadPlaceholdersChangeRef.current) {
+          const uploadIds: string[] = [];
+          ed.state.doc.descendants((node) => {
+            if (node.attrs.uploading && typeof node.attrs.uploadId === "string") {
+              uploadIds.push(node.attrs.uploadId);
+            }
+          });
+          onUploadPlaceholdersChangeRef.current(uploadIds);
+        }
         if (!onUpdateRef.current) return;
         pendingBaseRef.current = documentBaseRef.current;
         if (flushPendingOnUnmountRef.current) {

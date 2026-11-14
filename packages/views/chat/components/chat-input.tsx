@@ -294,6 +294,31 @@ export function ChatInput({
   // `draftKey` answers "what is selected"; this answers "what is loaded". Every
   // write the editor drives must use the latter.
   const editorDraftKeyRef = useRef(draftKey);
+  const uploadPlaceholdersRef = useRef(new Map<string, {
+    seen: Set<string>;
+    present: Set<string>;
+  }>());
+
+  // Pending placeholders do not serialize into markdown. Only an id actually
+  // shown and then removed from this document establishes deletion. Defer the
+  // store prune until unmount so undo can restore the in-flight placeholder.
+  useLayoutEffect(() => {
+    const placeholders = uploadPlaceholdersRef.current;
+    return () => {
+      for (const [key, { seen, present }] of placeholders) {
+        const uploads = useChatStore.getState().inputDraftAttachments[key] ?? EMPTY_UPLOADS;
+        for (const upload of uploads) {
+          if (
+            upload.status === "uploading" &&
+            seen.has(upload.clientUploadId) &&
+            !present.has(upload.clientUploadId)
+          ) {
+            useChatStore.getState().removeInputDraftUpload(key, upload.clientUploadId);
+          }
+        }
+      }
+    };
+  }, []);
 
   // Write a document into a draft slot: text, plus a prune of the attachments
   // its body no longer references (deleting an image's markdown drops the
@@ -310,8 +335,8 @@ export function ChatInput({
       if (uploads.length === 0) return;
       // Prune only COMPLETED uploads the body no longer references — deleting
       // an image's markdown drops the staged upload with it. Placeholders
-      // (uploading / failed / interrupted) have no body reference yet; the
-      // status chips are their only UI, so they must survive every keystroke.
+      // (uploading / failed / interrupted) have no body reference yet. Pending
+      // deletions are reconciled from the live document at unmount instead.
       const referenced = uploads.filter(
         (u) => u.status !== "uploaded" || isAttachmentReferenced(markdown, u.attachment),
       );
@@ -862,6 +887,12 @@ export function ChatInput({
             onUploadFile={uploadEnabled ? handleUpload : undefined}
             pasteAsFileThreshold={PASTE_AS_FILE_THRESHOLD}
             onUploadingChange={uploadGate.onUploadingChange}
+            onUploadPlaceholdersChange={(uploadIds) => {
+              const key = editorDraftKeyRef.current;
+              const seen = uploadPlaceholdersRef.current.get(key)?.seen ?? new Set<string>();
+              for (const id of uploadIds) seen.add(id);
+              uploadPlaceholdersRef.current.set(key, { seen, present: new Set(uploadIds) });
+            }}
             attachments={draftAttachments}
             debounceMs={100}
             mentionMode={contextItems ? "context" : "default"}
